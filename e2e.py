@@ -10,7 +10,7 @@ torch_device = "mps"
 
 const_params_dict = utils.load_params(artifact_path="dist", device=device)
 # Load the model executable back from the shared library.
-ex = tvm.runtime.load_module("dist/stable_diffusio_xl.so")
+ex = tvm.runtime.load_module("dist/stable_diffusion.so")
 
 vm = relax.VirtualMachine(rt_mod=ex, device=device)
 
@@ -26,7 +26,7 @@ from tqdm import tqdm
 from transformers import CLIPTokenizer
 
 
-class TVMSDPipeline:
+class TVMSDXLTurboPipeline:
     def __init__(
         self,
         vm: relax.VirtualMachine,
@@ -97,48 +97,47 @@ class TVMSDPipeline:
         
         prompt_embeds = self.concat_enocder_outputs(prompt_embeds_list[0], prompt_embeds_list[1])
 
-        if negative_prompt != "":
-            neg_prompt_embeds_list = []
-            for tokenizer, text_encoder in zip(tokenizers, text_encoders):
-                neg_text_inputs = tokenizer(
-                        negative_prompt,
-                        padding="max_length",
-                        max_length=tokenizer.model_max_length,
-                        truncation=True,
-                        return_tensors="pt",
-                    )
+        # if negative_prompt != "":
+        neg_prompt_embeds_list = []
+        for tokenizer, text_encoder in zip(tokenizers, text_encoders):
+            neg_text_inputs = tokenizer(
+                    negative_prompt,
+                    padding="max_length",
+                    max_length=tokenizer.model_max_length,
+                    truncation=True,
+                    return_tensors="pt",
+                )
 
-                neg_text_input_ids = neg_text_inputs.input_ids.to(torch.int32)
+            neg_text_input_ids = neg_text_inputs.input_ids.to(torch.int32)
 
 
-                if neg_text_input_ids.shape[-1] > self.tokenizer.model_max_length:
-                    neg_text_input_ids = neg_text_input_ids[:, : self.tokenizer.model_max_length]
-                neg_text_input_ids = tvm.nd.array(neg_text_input_ids.cpu().numpy(), self.tvm_device)
-                neg_clip_output = text_encoder(neg_text_input_ids)
-                neg_text_embeddings = neg_clip_output[0]
-                neg_pooled_prompt_embeds = neg_clip_output[1]
-                neg_prompt_embeds_list.append(neg_text_embeddings)
+            if neg_text_input_ids.shape[-1] > self.tokenizer.model_max_length:
+                neg_text_input_ids = neg_text_input_ids[:, : self.tokenizer.model_max_length]
+            neg_text_input_ids = tvm.nd.array(neg_text_input_ids.cpu().numpy(), self.tvm_device)
+            neg_clip_output = text_encoder(neg_text_input_ids)
+            neg_text_embeddings = neg_clip_output[0]
+            neg_pooled_prompt_embeds = neg_clip_output[1]
+            neg_prompt_embeds_list.append(neg_text_embeddings)
 
-            neg_prompt_embeds = self.concat_enocder_outputs(neg_prompt_embeds_list[0], neg_prompt_embeds_list[1])
-        else:
-            torch_template = torch.from_numpy(prompt_embeds.asnumpy())
-            neg_prompt_embeds = torch.zeros_like(torch_template)
-            neg_prompt_embeds = tvm.nd.array(neg_prompt_embeds, self.tvm_device)
+        neg_prompt_embeds = self.concat_enocder_outputs(neg_prompt_embeds_list[0], neg_prompt_embeds_list[1])
+        # else:
+        #     torch_template = torch.from_numpy(prompt_embeds.asnumpy())
+        #     neg_prompt_embeds = torch.zeros_like(torch_template)
+        #     neg_prompt_embeds = tvm.nd.array(neg_prompt_embeds, self.tvm_device)
 
-            torch_template_pooled = torch.from_numpy(pooled_prompt_embeds.asnumpy())
-            neg_pooled_prompt_embeds = torch.zeros_like(torch_template_pooled)
-            neg_pooled_prompt_embeds = tvm.nd.array(neg_pooled_prompt_embeds, self.tvm_device)
+        #     torch_template_pooled = torch.from_numpy(pooled_prompt_embeds.asnumpy())
+        #     neg_pooled_prompt_embeds = torch.zeros_like(torch_template_pooled)
+        #     neg_pooled_prompt_embeds = tvm.nd.array(neg_pooled_prompt_embeds, self.tvm_device)
 
 
             
-        add_text_embeds = self.concat_pool_embeddings(neg_pooled_prompt_embeds, pooled_prompt_embeds)
-        input_text_embeddings = self.concat_embeddings(neg_prompt_embeds, prompt_embeds)
+        add_text_embeds = pooled_prompt_embeds
+        input_text_embeddings = prompt_embeds
 
         print("add_text_embeds", add_text_embeds)
         print("input_text_embeddings", input_text_embeddings)
 
-        #TODO: check correct, fold into TVM
-        add_time_ids = torch.tensor([[1024., 1024., 0., 0., 1024., 1024.],[1024., 1024., 0., 0., 1024., 1024.]], dtype=torch.float32)
+        add_time_ids = torch.tensor([[512., 512.,   0.,   0., 512., 512.]], dtype=torch.float32)
         add_time_ids = tvm.nd.array(add_time_ids, self.tvm_device)
 
 
@@ -149,23 +148,30 @@ class TVMSDPipeline:
         #     device="cpu",
         #     dtype=torch.float32,
         # )
-        latents = torch.randn((1, 4, 128, 128), generator=None, device=torch_device, dtype=torch.float32, layout=torch.strided)
+        latents = torch.randn((1, 4, 64, 64), generator=None, device=torch_device, dtype=torch.float32, layout=torch.strided)
         latents = latents.cpu()
-        latents = 13.1585 * latents
+
+        #TODO: change to init noise sigma of scheduler
+        latents = 14.6146 * latents
         latents = tvm.nd.array(latents.numpy(), self.tvm_device)
 
         print("initialized latents", latents)
 
         # UNet iteration.
         for i in tqdm(range(len(self.scheduler.timesteps))):
+            #TODO: implement scheduler runtime, sigma... all the things
             t = self.scheduler.timesteps[i]
-            latent_model_input = self.cat_latents(latents)
+            # latent_model_input = self.cat_latents(latents)
+            latent_model_input = latents
 
             scaled_latent_model_input = self.scheduler.scale_model_input(self.vm, latent_model_input, i)
 
             noise_pred = self.unet_latents_to_noise_pred(scaled_latent_model_input, t, input_text_embeddings, add_text_embeds, add_time_ids)
             print("noise_pred shape: ", noise_pred)
-            latents = self.scheduler.step(self.vm, noise_pred, latents, i)
+            #TODO: add noise
+            noise = torch.randn([1, 4, 64, 64], dtype=torch.float32, layout=torch.strided)
+            noise = tvm.nd.array(noise.numpy(), self.tvm_device)
+            latents = self.scheduler.step(self.vm, noise_pred, latents, i, noise)
             print("latents", latents)
 
         # VAE decode.
@@ -173,14 +179,14 @@ class TVMSDPipeline:
 
         # Transform generated image to RGBA mode.
         image = self.image_to_rgba(image)
-        return Image.fromarray(image.numpy().view("uint8").reshape(1024, 1024, 4))
+        return Image.fromarray(image.numpy().view("uint8").reshape(512, 512, 4))
 
 
-pipe = TVMSDPipeline(
+pipe = TVMSDXLTurboPipeline(
     vm=vm,
     tokenizer=CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14"),
     tokenizer2=CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14", pad_token = "!"),
-    scheduler=runtime.EulerDiscreteScheduler(artifact_path="dist", device=device),
+    scheduler=runtime.EulerAncestralDiscreteScheduler(artifact_path="dist", device=device),
     tvm_device=device,
     param_dict=const_params_dict,
 )
@@ -188,7 +194,7 @@ pipe = TVMSDPipeline(
 
 import time
 
-prompt = "a beautiful girl floating in galaxy"
+prompt = "Jellyfish floating in a forest"
 negative_prompt = "purple"
 
 start = time.time()
