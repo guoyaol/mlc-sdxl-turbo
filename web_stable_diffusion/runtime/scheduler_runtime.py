@@ -167,6 +167,52 @@ class EulerDiscreteScheduler(Scheduler):
         result = vm["euler_discrete_scheduler_scale"](sample, self.sigma[counter])
         return result
 
+class EulerAncestralDiscreteScheduler(Scheduler):
+    scheduler_name = "euler-ancestral-discrete-solver"
+
+    def __init__(self, artifact_path: str, device) -> None:
+        with open(
+            f"{artifact_path}/scheduler_euler_ancestral_discrete_consts.json", "r"
+        ) as file:
+            jsoncontent = file.read()
+        scheduler_consts = json.loads(jsoncontent)
+
+        def f_convert(data, dtype):
+            return [tvm.nd.array(np.array(t, dtype=dtype), device) for t in data]
+
+        self.timesteps = f_convert(scheduler_consts["timesteps"], "int32")
+        self.sigma = f_convert(scheduler_consts["sigma"], "float32")
+
+        # self.last_model_output: tvm.nd.NDArray = tvm.nd.empty(
+        #     (1, 4, 64, 64), "float32", device
+        # )
+
+    def step(
+        self,
+        vm: relax.VirtualMachine,
+        model_output: tvm.nd.NDArray,
+        sample: tvm.nd.NDArray,
+        counter: int,
+        noise: tvm.nd.NDArray,
+    ) -> tvm.nd.NDArray:
+        # model_output = vm["dpm_solver_multistep_scheduler_convert_model_output"](
+        #     sample, model_output, self.alpha[counter], self.sigma[counter]
+        # )
+        prev_latents = vm["euler_ancestral_discrete_scheduler_step"](
+            sample,
+            model_output,
+            self.sigma[counter],
+            self.sigma[counter+1],
+            noise
+        )
+        # self.last_model_output = model_output
+        return prev_latents
+    
+    def scale_model_input(self, vm, sample: tvm.nd.NDArray, counter: int) -> tvm.nd.NDArray:
+        result = vm["euler_ancestral_discrete_scheduler_scale"](sample, self.sigma[counter])
+        return result
+
+
 # def __init__(
 #     self,
 #     num_train_timesteps: int = 1000,
