@@ -51,7 +51,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"1\"
       }
@@ -59,7 +59,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"1\"
       }
@@ -67,7 +67,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"77\"
       }
@@ -75,7 +75,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"77\"
       }
@@ -138,7 +138,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"1\"
       }
@@ -146,7 +146,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"1\"
       }
@@ -154,7 +154,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"77\"
       }
@@ -162,7 +162,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"77\"
       }
@@ -225,7 +225,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"1\"
       }
@@ -233,7 +233,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"160\"
       }
@@ -296,7 +296,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"1\"
       }
@@ -304,7 +304,7 @@ metadata = tvm.ir.load_json("""{
     {
       \"type_key\": \"IntImm\", 
       \"attrs\": {
-        \"dtype\": \"int64\", 
+        \"dtype\": \"int32\", 
         \"span\": \"0\", 
         \"value\": \"128\"
       }
